@@ -43,6 +43,12 @@ Installing this bundle does not automatically enable any provider. The user firs
 - A Web/Desktop composition containing `authorization`, `credentials`, `settings`, `llm-pi-ai`, the Remote gateway, and the Models settings UI
 - An account entitled to use the selected provider
 
+OAuth itself works with the upstream `0.1.6-alpha.2` UI. That release can still
+show the generic API-key editor for an OAuth-only provider because it does not
+yet expose the adapter's `apiKeyConfigurable` capability. A DSH build carrying
+that generic capability hides the inapplicable API-key/Edit controls. This
+bundle deliberately does not patch or hide core UI with provider-specific CSS.
+
 ## Install
 
 Install the current GitHub version into a Web profile:

@@ -43,6 +43,11 @@
 - Web/Desktop 组装包含 `authorization`、`credentials`、`settings`、`llm-pi-ai`、Remote Gateway 和 Models 设置界面
 - 对应账号具有该 Provider 所要求的访问权限
 
+OAuth 功能本身可以在官方 `0.1.6-alpha.2` UI 中使用。不过该版本还没有暴露适配器的
+`apiKeyConfigurable` 能力，因此 OAuth-only Provider 仍可能显示通用 API Key 编辑表单。带有该
+通用能力的 DSH 构建会隐藏不适用的 API Key/Edit 控件；本 Bundle 不会通过 Provider 专用 CSS
+去修改或遮挡核心 UI。
+
 ## 安装
 
 将当前 GitHub 版本安装到 Web Profile：
