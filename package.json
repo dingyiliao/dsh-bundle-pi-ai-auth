@@ -1,0 +1,83 @@
+{
+  "name": "@dingyiliao/dsh-pi-ai-auth",
+  "version": "0.3.1",
+  "description": "Provider-card OAuth controls and fallback commands for DeepSeek Harness pi-ai",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsdown --config tsdown.config.ts",
+    "test": "vitest run",
+    "check": "pnpm run build && pnpm run test"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dingyiliao/dsh-bundle-pi-ai-auth.git"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "pi-ai",
+    "oauth"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.2 <5",
+    "@deepseek-ai/dsh-authorization": ">=0.1.6-alpha.1 <0.2.0",
+    "@deepseek-ai/dsh-commands": ">=0.1.6-alpha.1 <0.2.0",
+    "@deepseek-ai/dsh-credentials": ">=0.1.6-alpha.1 <0.2.0",
+    "@deepseek-ai/dsh-llm-pi-ai": ">=0.1.6-alpha.1 <0.2.0",
+    "@deepseek-ai/dsh-settings": ">=0.1.6-alpha.1 <0.2.0",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.1.6-alpha.1 <0.2.0",
+    "@deepseek-ai/dsh-user-questions": ">=0.1.6-alpha.1 <0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

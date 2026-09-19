@@ -1,0 +1,23 @@
+export declare const NS = "piAiAuth";
+export declare const en: {
+    readonly statusSignedIn: "Signed in";
+    readonly statusSignedOut: "Not signed in";
+    readonly statusSigningIn: "Signing in…";
+    readonly statusUnavailable: "Save this provider before signing in";
+    readonly login: "Sign in";
+    readonly logout: "Sign out";
+    readonly cancel: "Cancel";
+    readonly submit: "Continue";
+    readonly close: "Close";
+    readonly dialogTitle: "{name} sign in";
+    readonly dialogDescription: "Complete the provider authorization flow. Credentials are stored by the provider integration.";
+    readonly openPage: "Open sign-in page";
+    readonly codeLabel: "Authorization code";
+    readonly waiting: "Waiting for the provider…";
+    readonly loginFailed: "Sign-in failed: {message}";
+    readonly logoutFailed: "Could not sign out: {message}";
+    readonly requestFailed: "Could not read authorization state: {message}";
+    readonly noPrompt: "Follow the instructions in your browser. This window will update automatically.";
+};
+export declare const zh: Record<keyof typeof en, string>;
+export type PiAiAuthKey = keyof typeof en;

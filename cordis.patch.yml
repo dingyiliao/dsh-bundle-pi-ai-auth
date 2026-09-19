@@ -1,0 +1,16 @@
+# Mount llm-pi-ai without pre-enabling any provider. A route is added to user
+# settings only when the user saves it from the Models page or runs auth-add.
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+
+# Mount the neutral authorization seam here so the bundle stays self-contained;
+# llm-pi-ai notices it dynamically and contributes its provider-owned flows.
+- insert:
+    - id: authorization
+      name: '@deepseek-ai/dsh-authorization'
+
+    # Host half: bundle-owned authorization Remote bridge plus fallback commands.
+    # Its browser half is discovered from package.json and contributes directly
+    # to the official settings.models.provider-card slot.
+    - id: pi-ai-auth
+      name: '@dingyiliao/dsh-pi-ai-auth'
