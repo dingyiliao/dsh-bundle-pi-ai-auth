@@ -29,13 +29,13 @@
 ## 兜底命令
 
 - `/auth-list`：列出支持 OAuth 的 Provider 及启用、登录状态。
-- `/auth-add [provider] [method]`：添加 Provider 并登录；省略 Provider 时显示选择问题。
-- `/auth-login [provider] [method]`：登录一个已经启用的 Provider。
+- `/auth-add [provider]`：添加 Provider 并登录；省略 Provider 时显示选择问题。
+- `/auth-login [provider]`：登录一个已经启用的 Provider。
 - `/auth-status [provider]`：查看单个 Provider；省略时等同 `/auth-list`。
 - `/auth-logout [provider]`：删除本地凭据，但保留 Provider 配置。
 - `/auth-remove [provider]`：删除用户添加的 Provider 配置及其本地凭据。
 
-`method` 默认是 `oauth`。由其他 Bundle 的基础配置启用的 Provider 不能通过 `/auth-remove` 删除，应当修改拥有该配置的 Bundle。
+由其他 Bundle 的基础配置启用的 Provider 不能通过 `/auth-remove` 删除，应当修改拥有该配置的 Bundle。
 
 ## 要求
 

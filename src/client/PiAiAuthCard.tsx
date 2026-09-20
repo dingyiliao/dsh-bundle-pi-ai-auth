@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button, Input, Modal, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { PiAiAuthorizationApi, PiAiAuthorizationEntry, PiAiAuthorizationPrompt } from '../wire.js'
 import type { PiAiAuthKey } from './locales.js'
 
@@ -17,10 +18,8 @@ function message(error: unknown): string {
   return error instanceof Error && error.message.length > 0 ? error.message : String(error)
 }
 
-function remoteValue<T>(result: Awaited<ReturnType<PiAiAuthorizationApi['list']>> | {
-  readonly ok: true; readonly value: T
-} | { readonly ok: false; readonly error: { readonly message: string } }): T {
-  if (result.ok) return result.value as T
+function remoteValue<T>(result: RemoteResult<T>): T {
+  if (result.ok) return result.value
   throw new Error(result.error.message)
 }
 
@@ -38,9 +37,8 @@ export function PiAiAuthCard({ provider, configured, authorization, t }: PiAiAut
 
   const refresh = useCallback(async () => {
     try {
-      const rows = remoteValue<readonly PiAiAuthorizationEntry[]>(await authorization.list())
+      const rows = remoteValue(await authorization.list())
       setEntry(rows.find(row => row.key === key))
-      setError(undefined)
     } catch (cause: unknown) {
       setError(t('requestFailed', { message: message(cause) }))
     } finally {
@@ -73,7 +71,7 @@ export function PiAiAuthCard({ provider, configured, authorization, t }: PiAiAut
     setAnswer('')
     setError(undefined)
     try {
-      for await (const frame of authorization.begin(key, 'oauth', controller.signal)) {
+      for await (const frame of authorization.begin(key, controller.signal)) {
         if (frame.type === 'notice') {
           setNotice({
             message: frame.message,
@@ -87,9 +85,7 @@ export function PiAiAuthCard({ provider, configured, authorization, t }: PiAiAut
           setPrompt(current => current?.promptId === frame.promptId ? undefined : current)
         } else if (frame.type === 'failed') {
           setError(t('loginFailed', { message: frame.message }))
-          setBusy(false)
         } else if (frame.type === 'settled') {
-          setBusy(false)
           if (frame.status === 'authorized') setOpen(false)
         }
       }
@@ -105,7 +101,7 @@ export function PiAiAuthCard({ provider, configured, authorization, t }: PiAiAut
   const submit = useCallback(async () => {
     if (prompt === undefined || answer.length === 0) return
     try {
-      remoteValue<boolean>(await authorization.answer(key, prompt.promptId, answer))
+      remoteValue(await authorization.answer(key, prompt.promptId, answer))
     } catch (cause: unknown) {
       setError(t('loginFailed', { message: message(cause) }))
     }
@@ -115,7 +111,7 @@ export function PiAiAuthCard({ provider, configured, authorization, t }: PiAiAut
     setBusy(true)
     setError(undefined)
     try {
-      remoteValue<boolean>(await authorization.signOut(key))
+      remoteValue(await authorization.signOut(key))
       await refresh()
     } catch (cause: unknown) {
       setError(t('logoutFailed', { message: message(cause) }))

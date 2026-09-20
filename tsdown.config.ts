@@ -3,13 +3,7 @@ import { defineConfig } from 'tsdown'
 const external = new Set([
   'react',
   'react/jsx-runtime',
-  'react-dom',
-  'react-dom/client',
-  '@deepseek-ai/cordis',
-  '@deepseek-ai/dsh-client-store',
-  '@deepseek-ai/dsh-client-ui-slots',
   '@deepseek-ai/dsh-client-ui-primitives',
-  '@deepseek-ai/dsh-client-ui-dockkit',
 ])
 
 export default defineConfig({

@@ -3,13 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const child = vi.hoisted(() => ({ once: vi.fn(), unref: vi.fn() }))
 const spawn = vi.hoisted(() => vi.fn(() => child))
 vi.mock('node:child_process', () => ({ spawn }))
-vi.mock('../src/authorization-controller.js', () => ({
-  PiAiAuthorizationController: class PiAiAuthorizationController {},
-}))
 
-import * as plugin from '../src/index.ts'
-
-const { apply } = plugin
+import { registerCommands } from '../src/commands.ts'
 
 beforeEach(() => {
   spawn.mockClear()
@@ -113,16 +108,13 @@ function harness(options: HarnessOptions = {}) {
     userQuestions: { ask },
     effect: (callback: () => unknown) => callback(),
   }
-  apply(ctx as never)
+  registerCommands(ctx as never)
   return { commands, deleted, mutations, ask, begin, base, user }
 }
 
 describe('generic pi-ai OAuth command bundle', () => {
-  it('keeps generic module metadata and fallback commands visible to the DSH Loader', () => {
+  it('registers the fallback commands used by the Remote Service plugin', () => {
     const test = harness()
-    expect('default' in plugin).toBe(false)
-    expect(plugin.name).toBe('pi-ai-auth')
-    expect(plugin.inject).toEqual(['authorization', 'commands', 'credentials', 'settings', 'userQuestions'])
     expect([...test.commands.keys()]).toEqual([
       'auth-list', 'auth-add', 'auth-login', 'auth-status', 'auth-logout', 'auth-remove',
     ])

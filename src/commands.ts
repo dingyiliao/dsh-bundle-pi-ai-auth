@@ -1,4 +1,4 @@
-/** Generic command surface for OAuth flows registered by current dsh-llm-pi-ai. */
+/** Fallback command surface for OAuth flows registered by current dsh-llm-pi-ai. */
 import type { Context } from '@deepseek-ai/cordis'
 import {
   AuthorizationDeclinedError,
@@ -6,14 +6,10 @@ import {
   type AuthorizationNotice,
   type AuthorizationPrompt,
 } from '@deepseek-ai/dsh-authorization'
-import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
+import type { CommandDefinition, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import { credentialKey, type CredentialKey } from '@deepseek-ai/dsh-credentials'
 import type { AskUserQuestionAnswer, AskUserQuestionOption } from '@deepseek-ai/dsh-user-questions'
-import { openBrowser } from './browser.js'
-import { PiAiAuthorizationController } from './authorization-controller.js'
-
-export const name = 'pi-ai-auth'
-export const inject = ['authorization', 'commands', 'credentials', 'settings', 'userQuestions']
+import { httpUrl, openBrowser } from './browser.js'
 
 const SETTINGS_NS = 'llm-pi-ai'
 const KEY_PREFIX = `${SETTINGS_NS}/`
@@ -28,11 +24,6 @@ interface ProviderLayers {
   readonly enabled: boolean
   readonly base: boolean
   readonly user: boolean
-}
-
-interface LoginAttempt {
-  readonly authorized: boolean
-  readonly result: CommandResult
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -75,16 +66,6 @@ function entryFor(ctx: Context, provider: string): AuthorizationEntry | undefine
 
 function keyFor(provider: string): CredentialKey {
   return credentialKey(SETTINGS_NS, provider)
-}
-
-function httpUrl(raw: string | undefined): string | undefined {
-  if (raw === undefined) return undefined
-  try {
-    const url = new URL(raw)
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : undefined
-  } catch {
-    return undefined
-  }
 }
 
 function answerValue(answer: AskUserQuestionAnswer, id: string): string {
@@ -207,12 +188,6 @@ function splitInput(raw: string): string[] {
   return raw.trim().split(/\s+/u).filter(part => part.length > 0)
 }
 
-function requestedMethod(raw: string | undefined, offered: readonly { id: string }[]): string {
-  const value = raw ?? 'oauth'
-  if (offered.some(method => method.id === value)) return value
-  throw new Error(`不支持授权方式 ${JSON.stringify(value)}；可用方式：${offered.map(method => method.id).join(', ')}`)
-}
-
 async function chooseProvider(
   ctx: Context,
   invocation: CommandInvocation,
@@ -265,22 +240,15 @@ async function runLogin(
   invocation: CommandInvocation,
   provider: string,
   entry: AuthorizationEntry,
-  rawMethod: string | undefined,
-): Promise<LoginAttempt> {
+): Promise<CommandResult> {
   if (entry.inFlight) {
-    return { authorized: false, result: { kind: 'error', text: `${entry.label} 的另一个登录正在进行。` } }
-  }
-  let method: string
-  try {
-    method = requestedMethod(rawMethod, entry.methods)
-  } catch (error: unknown) {
-    return { authorized: false, result: { kind: 'error', text: safeError(error) } }
+    return { kind: 'error', text: `${entry.label} 的另一个登录正在进行。` }
   }
   const state: InteractionState = { openedUrls: new Set(), transient: new Set() }
   try {
     const outcome = await ctx.authorization.begin({
       key: entry.key,
-      method,
+      method: 'oauth',
       signal: invocation.signal,
       interaction: {
         notify: (notice) => {
@@ -293,10 +261,10 @@ async function runLogin(
       },
     })
     return outcome.status === 'authorized'
-      ? { authorized: true, result: { kind: 'success', text: `${entry.label} 登录成功；${provider} 已可用于模型选择。` } }
-      : { authorized: false, result: { kind: 'error', text: `${entry.label} 登录已取消。` } }
+      ? { kind: 'success', text: `${entry.label} 登录成功；${provider} 已可用于模型选择。` }
+      : { kind: 'error', text: `${entry.label} 登录已取消。` }
   } catch (error: unknown) {
-    return { authorized: false, result: { kind: 'error', text: `${entry.label} 登录失败：${safeError(error)}` } }
+    return { kind: 'error', text: `${entry.label} 登录失败：${safeError(error)}` }
   } finally {
     for (const notice of state.transient) notice.controller.abort('authorization settled')
     await Promise.allSettled([...state.transient].map(notice => notice.settled))
@@ -319,8 +287,8 @@ async function list(ctx: Context, invocation: CommandInvocation): Promise<Comman
 }
 
 async function add(ctx: Context, invocation: CommandInvocation): Promise<CommandResult> {
-  const [rawProvider, rawMethod, extra] = splitInput(invocation.rawInput)
-  if (extra !== undefined) return { kind: 'error', text: '用法：/auth-add [provider] [method]' }
+  const [rawProvider, extra] = splitInput(invocation.rawInput)
+  if (extra !== undefined) return { kind: 'error', text: '用法：/auth-add [provider]' }
   const candidates = oauthEntries(ctx).filter(candidate => !providerLayers(ctx, candidate.provider).enabled)
   const resolved = await resolveTarget(ctx, invocation, rawProvider, candidates, '添加')
   if (resolved.error !== undefined) return resolved.error
@@ -336,22 +304,22 @@ async function add(ctx: Context, invocation: CommandInvocation): Promise<Command
   } catch (error: unknown) {
     return { kind: 'error', text: `无法启用 ${target.provider}：${safeError(error)}` }
   }
-  const attempt = await runLogin(ctx, invocation, target.provider, target.entry, rawMethod)
-  if (attempt.authorized) return attempt.result
+  const result = await runLogin(ctx, invocation, target.provider, target.entry)
+  if (result.kind === 'success') return result
   try {
     await ctx.settings.mutate(SETTINGS_NS, [{ op: 'unset', path: ['providers', target.provider] }])
   } catch (rollbackError: unknown) {
     return {
       kind: 'error',
-      text: `${attempt.result.text ?? '登录未完成'} Provider 已启用，但回滚失败：${safeError(rollbackError)}`,
+      text: `${result.text} Provider 已启用，但回滚失败：${safeError(rollbackError)}`,
     }
   }
-  return { kind: 'error', text: `${attempt.result.text ?? '登录未完成'} 本次新增已回滚，Provider 未启用。` }
+  return { kind: 'error', text: `${result.text} 本次新增已回滚，Provider 未启用。` }
 }
 
 async function login(ctx: Context, invocation: CommandInvocation): Promise<CommandResult> {
-  const [rawProvider, rawMethod, extra] = splitInput(invocation.rawInput)
-  if (extra !== undefined) return { kind: 'error', text: '用法：/auth-login [provider] [method]' }
+  const [rawProvider, extra] = splitInput(invocation.rawInput)
+  if (extra !== undefined) return { kind: 'error', text: '用法：/auth-login [provider]' }
   const candidates = oauthEntries(ctx).filter(candidate => providerLayers(ctx, candidate.provider).enabled)
   const resolved = await resolveTarget(ctx, invocation, rawProvider, candidates, '登录')
   if (resolved.error !== undefined) return resolved.error
@@ -360,7 +328,7 @@ async function login(ctx: Context, invocation: CommandInvocation): Promise<Comma
   if (!providerLayers(ctx, target.provider).enabled) {
     return { kind: 'error', text: `${target.provider} 尚未启用；请先运行 /auth-add ${target.provider}。` }
   }
-  return (await runLogin(ctx, invocation, target.provider, target.entry, rawMethod)).result
+  return await runLogin(ctx, invocation, target.provider, target.entry)
 }
 
 async function status(ctx: Context, invocation: CommandInvocation): Promise<CommandResult> {
@@ -430,19 +398,15 @@ async function remove(ctx: Context, invocation: CommandInvocation): Promise<Comm
   }
 }
 
-export function apply(ctx: Context): void {
-  // Bundle-owned Remote surface for the Models provider-card extension. Keeping
-  // it here avoids any OAuth-specific patch to the DSH settings controller.
-  new PiAiAuthorizationController(ctx)
+/** Register the optional command-line surface on the owning Service's Fiber. */
+export function registerCommands(ctx: Context): void {
   const definitions = [
     { name: 'auth-list', description: '列出支持 OAuth 的 pi-ai Provider', handler: (value: CommandInvocation) => list(ctx, value) },
-    { name: 'auth-add', description: '添加 Provider 并完成 OAuth 登录', input: { hint: '[provider] [method]' }, handler: (value: CommandInvocation) => add(ctx, value) },
-    { name: 'auth-login', description: '登录一个已启用的 OAuth Provider', input: { hint: '[provider] [method]' }, handler: (value: CommandInvocation) => login(ctx, value) },
+    { name: 'auth-add', description: '添加 Provider 并完成 OAuth 登录', input: { hint: '[provider]' }, handler: (value: CommandInvocation) => add(ctx, value) },
+    { name: 'auth-login', description: '登录一个已启用的 OAuth Provider', input: { hint: '[provider]' }, handler: (value: CommandInvocation) => login(ctx, value) },
     { name: 'auth-status', description: '查看 OAuth Provider 状态', input: { hint: '[provider]' }, handler: (value: CommandInvocation) => status(ctx, value) },
     { name: 'auth-logout', description: '退出登录但保留 Provider 配置', input: { hint: '[provider]' }, handler: (value: CommandInvocation) => logout(ctx, value) },
     { name: 'auth-remove', description: '移除 Provider 及其本地凭据', input: { hint: '[provider]' }, handler: (value: CommandInvocation) => remove(ctx, value) },
-  ]
-  for (const definition of definitions) {
-    ctx.effect(() => ctx.commands.register(definition), `pi-ai-auth: ${definition.name} command`)
-  }
+  ] satisfies readonly CommandDefinition[]
+  for (const definition of definitions) ctx.commands.register(definition)
 }

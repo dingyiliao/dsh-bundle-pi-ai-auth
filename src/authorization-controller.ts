@@ -7,6 +7,7 @@ import {
 import { credentialKey, type CredentialKey } from '@deepseek-ai/dsh-credentials'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { httpUrl, openBrowser } from './browser.js'
+import { registerCommands } from './commands.js'
 import type {
   PiAiAuthorizationEntry,
   PiAiAuthorizationFrame,
@@ -28,7 +29,6 @@ interface ActiveAuthorization {
   readonly channel: FrameChannel
   openedUrl?: string
   prompt: PendingPrompt | undefined
-  cancelled: boolean
 }
 
 class FrameChannel implements AsyncIterable<PiAiAuthorizationFrame> {
@@ -102,14 +102,16 @@ function wirePrompt(promptId: string, prompt: AuthorizationPrompt): PiAiAuthoriz
 
 /** Bundle-local Remote bridge used only by the provider-card browser extension. */
 export class PiAiAuthorizationController extends TypertRemoteService {
+  static inject = ['authorization', 'commands', 'credentials', 'settings', 'userQuestions']
+
   private readonly active = new Map<string, ActiveAuthorization>()
   private promptSerial = 0
 
   constructor(ctx: Context) {
     super(ctx, 'piAiAuthorization')
+    registerCommands(ctx)
     ctx.effect(() => () => {
       for (const authorization of this.active.values()) {
-        authorization.cancelled = true
         authorization.abort.abort('pi-ai authorization controller disposed')
         authorization.prompt?.reject(new AuthorizationDeclinedError('authorization controller disposed'))
         authorization.channel.close()
@@ -131,51 +133,41 @@ export class PiAiAuthorizationController extends TypertRemoteService {
   async list(): Promise<readonly PiAiAuthorizationEntry[]> {
     const entries = this.ctx.authorization.list().filter(isOAuthEntry).filter(entry =>
       providerFromRawKey(String(entry.key)) !== undefined)
-    return await Promise.all(entries.map(async (entry) => {
+    return Promise.all(entries.map(async (entry) => {
       const record = await this.ctx.credentials.describeRecord(entry.key)
       return {
         key: String(entry.key),
         label: entry.label,
-        methods: entry.methods.map(method => ({ id: method.id, label: method.label })),
         inFlight: entry.inFlight || this.active.has(String(entry.key)),
         configured: record.configured,
-        ...(record.kind === undefined ? {} : { credentialKind: record.kind }),
       }
     }))
   }
 
   @Remote({ mode: 'stream' })
-  async *begin(rawKey: string, method: string | undefined, signal: AbortSignal): AsyncGenerator<PiAiAuthorizationFrame> {
+  async *begin(rawKey: string, signal: AbortSignal): AsyncGenerator<PiAiAuthorizationFrame> {
     const { key, entry } = this.entry(rawKey)
     if (this.active.has(rawKey) || entry.inFlight) throw new Error(`${entry.label} authorization is already running`)
-    const selectedMethod = method ?? 'oauth'
-    if (!entry.methods.some(candidate => candidate.id === selectedMethod)) {
-      throw new TypeError(`Authorization method ${JSON.stringify(selectedMethod)} is not available`)
-    }
 
     const active: ActiveAuthorization = {
       key,
       abort: new AbortController(),
       channel: new FrameChannel(),
-      cancelled: false,
       prompt: undefined,
     }
     this.active.set(rawKey, active)
     const onAbort = (): void => {
-      active.cancelled = true
       active.abort.abort(signal.reason)
       active.prompt?.reject(new AuthorizationDeclinedError('authorization stream closed'))
     }
     signal.addEventListener('abort', onAbort, { once: true })
-    active.channel.push({ type: 'started', key: rawKey })
-    void this.run(rawKey, entry, selectedMethod, active)
+    void this.run(rawKey, entry, active)
 
     try {
       for await (const frame of active.channel) yield frame
     } finally {
       signal.removeEventListener('abort', onAbort)
       if (this.active.get(rawKey) === active) {
-        active.cancelled = true
         active.abort.abort('authorization stream closed')
         active.prompt?.reject(new AuthorizationDeclinedError('authorization stream closed'))
       }
@@ -185,13 +177,12 @@ export class PiAiAuthorizationController extends TypertRemoteService {
   private async run(
     rawKey: string,
     entry: AuthorizationEntry,
-    method: string,
     active: ActiveAuthorization,
   ): Promise<void> {
     try {
       const outcome = await this.ctx.authorization.begin({
         key: active.key,
-        method,
+        method: 'oauth',
         signal: active.abort.signal,
         interaction: {
           notify: (notice) => {
@@ -212,7 +203,7 @@ export class PiAiAuthorizationController extends TypertRemoteService {
       })
       active.channel.push({ type: 'settled', status: outcome.status })
     } catch (error: unknown) {
-      if (active.cancelled || active.abort.signal.aborted) {
+      if (active.abort.signal.aborted) {
         active.channel.push({ type: 'settled', status: 'cancelled' })
       } else {
         this.ctx.logger.warn(`pi-ai-auth(${entry.label}): ${safeError(error)}`)
@@ -258,21 +249,11 @@ export class PiAiAuthorizationController extends TypertRemoteService {
     return true
   }
 
-  @Remote('decline')
-  decline(rawKey: string, promptId: string): boolean {
-    this.entry(rawKey)
-    const prompt = this.active.get(rawKey)?.prompt
-    if (prompt?.id !== promptId) return false
-    prompt.reject(new AuthorizationDeclinedError('authorization prompt dismissed'))
-    return true
-  }
-
   @Remote('cancel')
   cancel(rawKey: string): boolean {
     const { key } = this.entry(rawKey)
     const active = this.active.get(rawKey)
     if (active === undefined) return false
-    active.cancelled = true
     this.ctx.authorization.cancel(key)
     active.abort.abort('authorization cancelled')
     active.prompt?.reject(new AuthorizationDeclinedError('authorization cancelled'))
@@ -284,7 +265,6 @@ export class PiAiAuthorizationController extends TypertRemoteService {
     const { key } = this.entry(rawKey)
     const active = this.active.get(rawKey)
     if (active !== undefined) {
-      active.cancelled = true
       this.ctx.authorization.cancel(key)
       active.abort.abort('signed out')
       active.prompt?.reject(new AuthorizationDeclinedError('signed out'))
@@ -293,3 +273,5 @@ export class PiAiAuthorizationController extends TypertRemoteService {
     return true
   }
 }
+
+export default PiAiAuthorizationController

@@ -9,7 +9,6 @@ describe('provider-card Remote contract', () => {
         ['list', 'unary'],
         ['begin', 'stream'],
         ['answer', 'unary'],
-        ['decline', 'unary'],
         ['cancel', 'unary'],
         ['signOut', 'unary'],
       ])

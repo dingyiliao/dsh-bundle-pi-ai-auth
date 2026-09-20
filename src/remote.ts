@@ -1,8 +1,6 @@
 import type {
-  RemoteResult,
   TypertCodec,
   TypertRemoteContribution,
-  TypertSchema,
 } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   PiAiAuthorizationApi,
@@ -10,12 +8,8 @@ import type {
   PiAiAuthorizationFrame,
 } from './wire.js'
 
-function schema<T>(validate: (value: unknown) => T): TypertSchema<T> {
-  return { parse: validate }
-}
-
 function strict<T>(name: string, validate: (value: unknown) => T): TypertCodec {
-  return { mode: 'strict', typeSymbol: name, create: () => schema(validate) }
+  return { mode: 'strict', typeSymbol: name, create: () => ({ parse: validate }) }
 }
 
 function object(value: unknown, name: string): Record<string, unknown> {
@@ -37,22 +31,11 @@ function boolean(value: unknown, name = 'value'): boolean {
 
 function authorizationEntry(value: unknown): PiAiAuthorizationEntry {
   const row = object(value, 'authorization entry')
-  const methods = row['methods']
-  if (!Array.isArray(methods)) throw new TypeError('authorization entry methods must be an array')
-  const kind = row['credentialKind']
-  if (kind !== undefined && kind !== 'api-key' && kind !== 'grant') {
-    throw new TypeError('authorization credentialKind is invalid')
-  }
   return {
     key: string(row['key'], 'authorization entry key'),
     label: string(row['label'], 'authorization entry label'),
-    methods: methods.map((method) => {
-      const item = object(method, 'authorization method')
-      return { id: string(item['id'], 'method id'), label: string(item['label'], 'method label') }
-    }),
     inFlight: boolean(row['inFlight'], 'authorization entry inFlight'),
     configured: boolean(row['configured'], 'authorization entry configured'),
-    ...(kind === undefined ? {} : { credentialKind: kind }),
   }
 }
 
@@ -64,7 +47,6 @@ function authorizationEntries(value: unknown): readonly PiAiAuthorizationEntry[]
 function authorizationFrame(value: unknown): PiAiAuthorizationFrame {
   const frame = object(value, 'authorization frame')
   const type = string(frame['type'], 'authorization frame type')
-  if (type === 'started') return { type, key: string(frame['key'], 'authorization key') }
   if (type === 'notice') {
     return {
       type,
@@ -120,20 +102,15 @@ function authorizationFrame(value: unknown): PiAiAuthorizationFrame {
 }
 
 const STRING = strict('string', value => string(value))
-const OPTIONAL_STRING = strict('string | undefined', (value) => {
-  if (value === undefined) return undefined
-  return string(value)
-})
 const BOOLEAN = strict('boolean', value => boolean(value))
 const ENTRIES = strict('readonly PiAiAuthorizationEntry[]', authorizationEntries)
 const FRAME = strict('PiAiAuthorizationFrame', authorizationFrame)
 
-const parameter = (name: string, codec: TypertCodec, acceptsUndefined = false) => ({
+const parameter = (name: string, codec: TypertCodec) => ({
   name,
   wire: name,
   source: 'json' as const,
   codec,
-  ...(acceptsUndefined ? { acceptsUndefined: true as const } : {}),
 })
 
 /** Strict Client contract paired with Host source-mode discovery in this bundle. */
@@ -149,18 +126,16 @@ export const PI_AI_AUTH_REMOTE: TypertRemoteContribution = {
       id: '@dingyiliao/dsh-pi-ai-auth:piAiAuthorization/begin',
       service: 'piAiAuthorization', namespace: 'piAiAuthorization', method: 'begin', mode: 'stream',
       invocation: { kind: 'direct' },
-      parameters: [parameter('rawKey', STRING), parameter('method', OPTIONAL_STRING, true)],
+      parameters: [parameter('rawKey', STRING)],
       cancellation: { parameter: 'signal' }, result: FRAME,
     },
-    ...(['answer', 'decline'] as const).map(method => ({
-      id: `@dingyiliao/dsh-pi-ai-auth:piAiAuthorization/${method}`,
-      service: 'piAiAuthorization', namespace: 'piAiAuthorization', method,
-      invocation: { kind: 'direct' as const },
-      parameters: method === 'answer'
-        ? [parameter('rawKey', STRING), parameter('promptId', STRING), parameter('value', STRING)]
-        : [parameter('rawKey', STRING), parameter('promptId', STRING)],
+    {
+      id: '@dingyiliao/dsh-pi-ai-auth:piAiAuthorization/answer',
+      service: 'piAiAuthorization', namespace: 'piAiAuthorization', method: 'answer',
+      invocation: { kind: 'direct' },
+      parameters: [parameter('rawKey', STRING), parameter('promptId', STRING), parameter('value', STRING)],
       result: BOOLEAN,
-    })),
+    },
     ...(['cancel', 'signOut'] as const).map(method => ({
       id: `@dingyiliao/dsh-pi-ai-auth:piAiAuthorization/${method}`,
       service: 'piAiAuthorization', namespace: 'piAiAuthorization', method,
@@ -175,7 +150,6 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'piAiAuthorization/list': PiAiAuthorizationApi['list']
     'piAiAuthorization/begin': PiAiAuthorizationApi['begin']
     'piAiAuthorization/answer': PiAiAuthorizationApi['answer']
-    'piAiAuthorization/decline': PiAiAuthorizationApi['decline']
     'piAiAuthorization/cancel': PiAiAuthorizationApi['cancel']
     'piAiAuthorization/signOut': PiAiAuthorizationApi['signOut']
   }
@@ -183,6 +157,3 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     readonly piAiAuthorization: PiAiAuthorizationApi
   }
 }
-
-// Keeps the imported carrier type visible to declaration emit.
-export type PiAiAuthRemoteResult<T> = RemoteResult<T>

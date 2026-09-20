@@ -29,13 +29,13 @@ Installing this bundle does not automatically enable any provider. The user firs
 ## Fallback commands
 
 - `/auth-list`: list OAuth-capable providers with enablement and login state.
-- `/auth-add [provider] [method]`: add and sign in; omitting the provider opens a selection question.
-- `/auth-login [provider] [method]`: sign in to an enabled provider.
+- `/auth-add [provider]`: add and sign in; omitting the provider opens a selection question.
+- `/auth-login [provider]`: sign in to an enabled provider.
 - `/auth-status [provider]`: inspect one provider; without a provider it behaves like `/auth-list`.
 - `/auth-logout [provider]`: remove the local credential while keeping the provider enabled.
 - `/auth-remove [provider]`: remove a user-added provider and its local credential.
 
-`method` defaults to `oauth`. A provider enabled by another bundle's base configuration cannot be removed with `/auth-remove`; update the owning bundle instead.
+A provider enabled by another bundle's base configuration cannot be removed with `/auth-remove`; update the owning bundle instead.
 
 ## Requirements
 
