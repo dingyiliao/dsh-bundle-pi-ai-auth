@@ -59,25 +59,23 @@ dsh plugin --profile web add github:dingyiliao/dsh-bundle-pi-ai-auth
 Desktop 的插件管理器也可以直接填写同一个包地址。安装后重启对应的 DSH
 应用，在 **设置 → Models** 中添加支持 OAuth 的 Provider，然后使用该卡片上的登录按钮。
 
-发布到 npm 后，也可以使用 registry 包名：
-
-```sh
-dsh plugin --profile web add @dingyiliao/dsh-pi-ai-auth
-```
-
-仓库已经包含构建后的 Host 与 Client 入口，因此从 GitHub 安装时不需要执行包构建脚本。
-
 ## 架构
 
-```text
-Models Provider 卡片
-  -> Bundle 浏览器扩展（settings.models.provider-card）
-  -> Bundle 自带的 piAiAuthorization Remote Controller
-  -> ctx.authorization.begin(llm-pi-ai/<provider>)
-  -> llm-pi-ai / pi-ai 拥有的 Provider flow
-  -> 浏览器、设备码或后续问题交互
-  -> Provider 自己拥有的 credential record
-  -> llm-pi-ai 在请求时读取并刷新该 record
+```mermaid
+flowchart LR
+  subgraph Client["Web / Desktop 客户端"]
+    A["Models Provider 卡片"] --> B["Bundle Client 扩展<br/>settings.models.provider-card"]
+  end
+
+  subgraph Host["DSH Host"]
+    C["piAiAuthorization<br/>Remote Controller"] --> D["ctx.authorization.begin<br/>llm-pi-ai/provider"]
+    D --> E["Provider 拥有的 OAuth Flow<br/>llm-pi-ai / pi-ai"]
+    G["Provider 拥有的<br/>Credential Record"] --> H["llm-pi-ai 在模型请求时<br/>读取并刷新凭据"]
+  end
+
+  B -->|Remote RPC| C
+  E --> F["浏览器、设备码<br/>或后续问题交互"]
+  F --> G
 ```
 
 本实现不会创建临时 token 环境变量。退出登录只删除本地 record，并不声称已经在远端 Provider 撤销授权。

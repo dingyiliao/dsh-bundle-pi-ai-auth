@@ -61,26 +61,23 @@ The same package spec can be entered in Desktop's plugin manager. Restart the
 corresponding DSH app after installation, add an OAuth-capable provider under
 **Settings → Models**, and use the sign-in action on that provider card.
 
-After an npm release is available, the registry form is:
-
-```sh
-dsh plugin --profile web add @dingyiliao/dsh-pi-ai-auth
-```
-
-The repository includes its built Host and Client entry files, so Git installs
-do not need to run a package build script.
-
 ## Architecture
 
-```text
-Models provider card
-  -> bundle browser extension (settings.models.provider-card)
-  -> bundle-owned piAiAuthorization Remote controller
-  -> ctx.authorization.begin(llm-pi-ai/<provider>)
-  -> provider-owned flow from llm-pi-ai / pi-ai
-  -> browser, device-code, or follow-up prompt interaction
-  -> provider-owned credential record
-  -> llm-pi-ai reads and refreshes that record for requests
+```mermaid
+flowchart LR
+  subgraph Client["Web / Desktop Client"]
+    A["Models provider card"] --> B["Bundle client extension<br/>settings.models.provider-card"]
+  end
+
+  subgraph Host["DSH Host"]
+    C["piAiAuthorization<br/>Remote controller"] --> D["ctx.authorization.begin<br/>llm-pi-ai/provider"]
+    D --> E["Provider-owned OAuth flow<br/>llm-pi-ai / pi-ai"]
+    G["Provider-owned<br/>credential record"] --> H["llm-pi-ai reads and refreshes<br/>credentials for model requests"]
+  end
+
+  B -->|Remote RPC| C
+  E --> F["Browser, device code,<br/>or follow-up prompt"]
+  F --> G
 ```
 
 No temporary token environment variable is created. Logout removes the local record; it does not claim to revoke the grant at the remote provider.
