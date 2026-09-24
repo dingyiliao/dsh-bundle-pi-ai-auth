@@ -6,7 +6,7 @@ declare module '@deepseek-ai/cordis' {
       register(definition: import('@deepseek-ai/dsh-commands').CommandDefinition): () => void
     }
     readonly credentials: import('@deepseek-ai/dsh-credentials').CredentialProvider
-    readonly settings: import('@deepseek-ai/dsh-settings').SettingsProvider
+    readonly settings: import('@deepseek-ai/dsh-settings').SettingsForms
     readonly userQuestions: {
       ask(request: import('@deepseek-ai/dsh-user-questions').AskUserQuestionRequest):
         Promise<import('@deepseek-ai/dsh-user-questions').AskUserQuestionAnswer>
@@ -205,7 +205,7 @@ declare module '@deepseek-ai/dsh-settings' {
     path: readonly string[]
     value?: unknown
   }
-  export interface SettingsProvider {
+  export interface SettingsForms {
     describe(): SettingsDescriptor[]
     mutate(ns: string, ops: readonly SettingsPathOp[]): Promise<void>
   }

@@ -1,6 +1,6 @@
 {
   "name": "@dingyiliao/dsh-pi-ai-auth",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Provider-card OAuth controls and fallback commands for DeepSeek Harness pi-ai",
   "type": "module",
   "main": "./lib/authorization-controller.js",
@@ -41,8 +41,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && tsdown --config tsdown.config.ts",
-    "test": "vitest run",
-    "check": "pnpm run build && pnpm run test"
+    "test": "pnpm run build && vitest run",
+    "check": "pnpm run test"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
@@ -62,13 +62,13 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.2 <5",
-    "@deepseek-ai/dsh-authorization": ">=0.1.6-alpha.1 <0.2.0",
-    "@deepseek-ai/dsh-commands": ">=0.1.6-alpha.1 <0.2.0",
-    "@deepseek-ai/dsh-credentials": ">=0.1.6-alpha.1 <0.2.0",
-    "@deepseek-ai/dsh-llm-pi-ai": ">=0.1.6-alpha.1 <0.2.0",
-    "@deepseek-ai/dsh-settings": ">=0.1.6-alpha.1 <0.2.0",
-    "@deepseek-ai/dsh-typert-protocol": ">=0.1.6-alpha.1 <0.2.0",
-    "@deepseek-ai/dsh-user-questions": ">=0.1.6-alpha.1 <0.2.0"
+    "@deepseek-ai/dsh-authorization": ">=0.1.7-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-commands": ">=0.1.7-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-credentials": ">=0.1.7-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-llm-pi-ai": ">=0.1.7-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-settings": ">=0.1.7-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.1.7-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-user-questions": ">=0.1.7-rc.2 <0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

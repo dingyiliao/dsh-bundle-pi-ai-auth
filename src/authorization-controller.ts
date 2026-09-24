@@ -146,6 +146,7 @@ export class PiAiAuthorizationController extends TypertRemoteService {
 
   @Remote({ mode: 'stream' })
   async *begin(rawKey: string, signal: AbortSignal): AsyncGenerator<PiAiAuthorizationFrame> {
+    signal.throwIfAborted()
     const { key, entry } = this.entry(rawKey)
     if (this.active.has(rawKey) || entry.inFlight) throw new Error(`${entry.label} authorization is already running`)
 
@@ -218,6 +219,13 @@ export class PiAiAuthorizationController extends TypertRemoteService {
   }
 
   private ask(active: ActiveAuthorization, prompt: AuthorizationPrompt): Promise<string> {
+    if (active.abort.signal.aborted) {
+      return Promise.reject(new AuthorizationDeclinedError('authorization prompt withdrawn'))
+    }
+    // Retiring one prompt must not mark the entire authorization as declined.
+    if (prompt.signal?.aborted) {
+      return Promise.reject(new Error('authorization prompt withdrawn', { cause: prompt.signal.reason }))
+    }
     if (active.prompt !== undefined) throw new Error('Provider requested overlapping authorization prompts')
     const promptId = `prompt-${String(++this.promptSerial)}`
     return new Promise<string>((resolve, reject) => {
@@ -228,7 +236,7 @@ export class PiAiAuthorizationController extends TypertRemoteService {
         callback()
       }
       const onAbort = (): void => {
-        finish(() => { reject(new AuthorizationDeclinedError('authorization prompt withdrawn')) })
+        finish(() => { reject(new Error('authorization prompt withdrawn', { cause: prompt.signal?.reason })) })
       }
       active.prompt = {
         id: promptId,

@@ -39,15 +39,14 @@ A provider enabled by another bundle's base configuration cannot be removed with
 
 ## Requirements
 
-- DeepSeek Harness `0.1.6-alpha.1` or a compatible later `0.1.x` release that provides `settings.models.provider-card`
+- DeepSeek Harness `0.1.7-rc.2` (the compatibility baseline for this version), or a compatible stable `0.1.x` release from `0.1.7` onward
 - A Web/Desktop composition containing `authorization`, `credentials`, `settings`, `llm-pi-ai`, the Remote gateway, and the Models settings UI
 - An account entitled to use the selected provider
 
-OAuth itself works with the upstream `0.1.6-alpha.2` UI. That release can still
-show the generic API-key editor for an OAuth-only provider because it does not
-yet expose the adapter's `apiKeyConfigurable` capability. A DSH build carrying
-that generic capability hides the inapplicable API-key/Edit controls. This
-bundle deliberately does not patch or hide core UI with provider-specific CSS.
+The core Models UI may still show the generic API-key editor for an OAuth-only
+provider. A DSH build exposing the adapter's `apiKeyConfigurable` capability
+hides the inapplicable API-key/Edit controls. This bundle deliberately does not
+patch or hide core UI with provider-specific CSS.
 
 ## Install
 

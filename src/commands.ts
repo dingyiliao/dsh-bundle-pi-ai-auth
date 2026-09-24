@@ -8,6 +8,7 @@ import {
 } from '@deepseek-ai/dsh-authorization'
 import type { CommandDefinition, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import { credentialKey, type CredentialKey } from '@deepseek-ai/dsh-credentials'
+import type {} from '@deepseek-ai/dsh-settings'
 import type { AskUserQuestionAnswer, AskUserQuestionOption } from '@deepseek-ai/dsh-user-questions'
 import { httpUrl, openBrowser } from './browser.js'
 

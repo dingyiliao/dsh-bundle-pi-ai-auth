@@ -39,13 +39,12 @@
 
 ## 要求
 
-- DeepSeek Harness `0.1.6-alpha.1` 或之后兼容、且提供 `settings.models.provider-card` 的 `0.1.x` 版本
+- DeepSeek Harness `0.1.7-rc.2`（本版兼容性基线），或从 `0.1.7` 开始的兼容 `0.1.x` 稳定版
 - Web/Desktop 组装包含 `authorization`、`credentials`、`settings`、`llm-pi-ai`、Remote Gateway 和 Models 设置界面
 - 对应账号具有该 Provider 所要求的访问权限
 
-OAuth 功能本身可以在官方 `0.1.6-alpha.2` UI 中使用。不过该版本还没有暴露适配器的
-`apiKeyConfigurable` 能力，因此 OAuth-only Provider 仍可能显示通用 API Key 编辑表单。带有该
-通用能力的 DSH 构建会隐藏不适用的 API Key/Edit 控件；本 Bundle 不会通过 Provider 专用 CSS
+核心 Models UI 仍可能为 OAuth-only Provider 显示通用 API Key 编辑表单。暴露适配器
+`apiKeyConfigurable` 能力的 DSH 构建会隐藏不适用的 API Key/Edit 控件；本 Bundle 不会通过 Provider 专用 CSS
 去修改或遮挡核心 UI。
 
 ## 安装
